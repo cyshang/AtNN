@@ -1,0 +1,21 @@
+<==========struct Parameter==========>
+random_seed: 0
+nSample: 24655
+energy_correction: 27211.4
+nElement: 2
+nAtom: 8
+element list:
+N<->0
+H<->1
+atom list:
+0 0 1 1 1 1 1 1 
+nFuncInfo: 1
+projectName: test
+fNetworkInfo: NetworkInfo.cfg
+DataType: XYZ
+fCartesianData: N2H6-tot.xyz
+fDistanceData: 
+symfunc_folder: 
+input_folder: 
+output_folder: 
+
