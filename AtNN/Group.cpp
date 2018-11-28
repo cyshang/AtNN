@@ -5,6 +5,9 @@
 using namespace Eigen;
 using std::vector;
 using std::cout;
+using std::setw;
+using std::left;
+using std::setprecision;
 
 const NetworkInfo * Group::pInfo = NULL;
 NeuralNetwork * Group::pNetwork = NULL;
@@ -20,7 +23,6 @@ void Group::Construct() {
 	nLayer = pInfo->nLayer[iGroup];
 	nNeuron = pInfo->nNeuron[iGroup];
 
-	Z.clear();
 	A.clear();
 	devA.clear();
 	dFdZ.clear();
@@ -29,7 +31,6 @@ void Group::Construct() {
 	W_copy.clear();
 	b_copy.clear();
 
-	Z.resize(nLayer);
 	A.resize(nLayer);
 	devA.resize(nLayer);
 	dFdZ.resize(nLayer);
@@ -40,7 +41,6 @@ void Group::Construct() {
 	
 
 	for (int iLayer = 0; iLayer < nLayer; ++iLayer) {
-		Z[iLayer].resize(nNet, MatrixXd(nNeuron[iLayer], pInfo->tSample));
 		A[iLayer].resize(nNet, MatrixXd(nNeuron[iLayer], pInfo->tSample));
 		dFdZ[iLayer].resize(nNet, MatrixXd(nNeuron[iLayer], pInfo->tSample));
 		devA[iLayer].resize(nNet, MatrixXd(nNeuron[iLayer], pInfo->vSample));
@@ -74,8 +74,11 @@ void Group::Construct() {
 	}
 
 #ifdef DEBUG_GROUP
-
-
+	debug << "Group" << iGroup << "::Construct()" << endl;
+	debug << "nWeight: " << nWeight << endl;
+	debug << "WeightStart: " << WeightStart << endl;
+	debug << "inputStart: " << inputStart << endl;
+	debug << endl;
 #endif	
 }
 
@@ -87,19 +90,29 @@ void Group::DataInput()
 		A[0][iNet] = pNetwork->inputX.block(input, 0, nNeuron[0], pInfo->tSample);
 		devA[0][iNet] = pNetwork->inputX.block(input, pInfo->tSample, nNeuron[0], pInfo->vSample);
 		input += nNeuron[0];
-
 	}
 
-	
+#ifdef DEBUG_GROUP
+	debug << "Group" << iGroup << "::DataInput()" << endl;
+	for (int iNet = 0; iNet < nNet; ++iNet) {
+		debug << "A[0][" << iNet << "]:" << endl;
+		debug << A[0][iNet] << endl << endl;
+	}
 
+	for (int iNet = 0; iNet < nNet; ++iNet) {
+		debug << "devA[0][" << iNet << "]:" << endl;
+		debug << devA[0][iNet] << endl << endl;
+	}
+	debug << endl;
+#endif	
 }
 
 void Group::ForwardProp()
 {
-	for (int iLayer = 1; iLayer < nLayer - 1; ++iLayer) {
-		for (int iNet = 0; iNet < nNet; ++iNet) {
-			Z[iLayer][iNet] = (W[iLayer] * A[iLayer - 1][iNet]).colwise() + b[iLayer];
-			A[iLayer][iNet] = (Z[iLayer][iNet]).array() / sqrt((Z[iLayer][iNet]).array().square() + 1);
+	for (int i = 1; i < nLayer - 1; ++i) {
+		for (int j = 0; j < nNet; ++j) {
+			A[i][j] = ((W[i] * A[i - 1][j]).colwise() + b[i]).array() / 
+				sqrt(((W[i] * A[i - 1][j]).colwise() + b[i]).array().square() + 1);
 		}
 	}
 	
@@ -145,6 +158,12 @@ void Group::BackProp()
 	iCol += dim;
 
 	pNetwork->Jac.col(iCol) = VectorXd::Ones(pInfo->tSample) * nNet;
+
+#ifdef DEBUG_GROUP
+	debug << "Group" << iGroup << "::BackProp()" << endl;
+	debug << nWeight << " = " << iCol + 1 - WeightStart << endl;
+#endif // OUTPUT_TO_SCREEN
+
 }
 
 void Group::UpdateWeight()
@@ -160,6 +179,12 @@ void Group::UpdateWeight()
 		b[iLayer] += pNetwork->dWeight.segment(iRow, nNeuron[iLayer]);
 		iRow += nNeuron[iLayer];
 	}
+
+#ifdef DEBUG_GROUP
+	debug << "Group" << iGroup << "::UpdateWeight()" << endl;
+	debug << iRow - WeightStart << " = " << nWeight << endl;
+#endif // DEBUG_GROUP
+
 }
 
 void Group::BackupWeight()
@@ -181,9 +206,9 @@ void Group::RestoreWeight()
 void Group::CalDevEnergy()
 {
 	for (int i = 1; i < nLayer - 1; ++i) {
-		for (int iNet = 0; iNet < nNet; ++iNet) {
-			devA[i][iNet] = ((W[i] * devA[i - 1][iNet]).colwise() + b[i]).array() /
-				sqrt(((W[i] * devA[i - 1][iNet]).colwise() + b[i]).array().square() + 1);
+		for (int j = 0; j < nNet; ++j) {
+			devA[i][j] = ((W[i] * devA[i - 1][j]).colwise() + b[i]).array() /
+				sqrt(((W[i] * devA[i - 1][j]).colwise() + b[i]).array().square() + 1);
 		}
 	}
 
@@ -203,14 +228,19 @@ void Group::OutputWeight(std::ostream & outWb)
 	}
 }
 
-void Group::SaveWeight(std::ostream & outW)
+void Group::SaveWeight(std::ostream & fout)
 {
 	int iLayer;
+
 	for (iLayer = 1; iLayer < nLayer; ++iLayer) {
 		Map<RowVectorXd> tW(W[iLayer].data(), W[iLayer].size());
 		Map<RowVectorXd> tb(b[iLayer].data(), b[iLayer].size());
-		outW << std::setprecision(16) << tW << endl;
-		outW << std::setprecision(16) << tb << endl;
+		for (size_t i = 0; i < tW.size(); ++i)
+			fout << setw(25) << left << tW(i);
+		fout << endl;
+		for (size_t i = 0; i < tb.size(); ++i)
+			fout << setw(25) << left << tb(i);
+		fout << endl;
 	}
 }
 

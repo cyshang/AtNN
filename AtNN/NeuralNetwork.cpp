@@ -3,7 +3,6 @@
 #include "NetworkInfo.h"
 #include "Group.h"
 #include <algorithm>
-#include <iomanip>
 
 using std::left;
 using std::setw;
@@ -27,10 +26,6 @@ NeuralNetwork::~NeuralNetwork() {}
 
 void NeuralNetwork::Construct()
 {
-#ifdef DEBUG_NEURALNETWORK
-	debug << LMARK << "NeuralNetwork::ConstructNetwork" << RMARK << endl;	
-#endif
-
 	networkinfo.Construct(pSymfunc);
 
 	//---------- Calc dimX ----------	
@@ -71,8 +66,15 @@ void NeuralNetwork::Construct()
 		random_sequence[i] = i;
 		
 #ifdef DEBUG_NEURALNETWORK
-
+	debug << "NeuralNetwork::Construct()" << endl;
+	debug << "dimX: " << dimX << endl;
+	debug << "nWeight: " << nWeight << endl;
+	debug << endl;
 #endif
+
+#ifdef OUTPUT_TO_SCREEN
+	cout << "NeuralNetwork::Construct()" << endl;
+#endif // OUTPUT_TO_SCREEN
 }
 
 void NeuralNetwork::PreprocessData()
@@ -88,6 +90,11 @@ void NeuralNetwork::PreprocessData()
 
 	rawX = (rawX.colwise() - avgX).array().colwise() / (maxX - minX).array();
 	rawEnergy = (rawEnergy.array() - avgEnergy) / (maxEnergy - minEnergy);
+
+#ifdef OUTPUT_TO_SCREEN
+	cout << "NeuralNetwork::PreprocessData()" << endl;
+#endif // OUPUT_TO_SCREEN
+
 }
 
 void NeuralNetwork::ShuffleData()
@@ -98,6 +105,10 @@ void NeuralNetwork::ShuffleData()
 		inputX.col(i) = rawX.col(random_sequence[i]);
 		targetEnergy.col(i) = rawEnergy.col(random_sequence[i]);
 	}
+
+#ifdef OUTPUT_TO_SCREEN
+	cout << "NeuralNetwork::ShuffleData()" << endl;
+#endif // OUPUT_TO_SCREEN
 }
 
 void NeuralNetwork::TrainNetwork()
@@ -108,11 +119,15 @@ void NeuralNetwork::TrainNetwork()
 		"report_" + parameter.projectName + "_F" + parameter.funcinfo_id + ".dat";
 	ofstream fout(FileName.c_str(), ofstream::out);
 
+	fout << setw(6) << left << '#';
+	fout << parameter.fFunctionInfo << endl;
+
 	PreprocessData();
 	for (int iFit = 1; iFit <= networkinfo.nFitting; ++iFit) {
 
 		tRMSE_last = 9e9;
 		vRMSE_last = 9e9;
+		inc_step = 0;
 
 		for (int iGroup = 0; iGroup < networkinfo.nGroup; ++iGroup) {
 			netGroup[iGroup].RandWeight();
@@ -120,9 +135,20 @@ void NeuralNetwork::TrainNetwork()
 		ShuffleData();
 
 		FittingControl(iFit);
+		SaveNetwork(iFit);
+
+		ostringstream toStr;
+		if (networkinfo.nFitting < 10)
+			toStr << iFit;
+		else if (networkinfo.nFitting < 100)
+			toStr << setw(2) << std::right << std::setfill('0');
+		else
+			toStr << setw(3) << std::right << std::setfill('0');
+
+		fout << left << setw(6) << toStr.str();
 		fout << left << setw(12) << tRMSE;
 		fout << left << setw(12) << vRMSE << endl;
-		SaveNetwork(iFit);
+
 	}
 
 	fout.close();	
@@ -169,26 +195,41 @@ void NeuralNetwork::FittingControl(const int & iFit)
 	for (int iGroup = 0; iGroup < networkinfo.nGroup; ++iGroup) {
 		netGroup[iGroup].DataInput();
 	}
+#ifdef OUTPUT_TO_SCREEN
+	cout << "Group::DataInput()" << endl;
+#endif
 
 	ForwardProp();
 	TrainPerf();
+	CalDevSet();
+	DevPerf();
+
+	fout << left << setw(8) << 0;
+	fout << left << setw(12) << tRMSE;
+	fout << left << setw(12) << vRMSE;
+	fout << left << setw(8) << now_mu << endl;
+
+#ifdef OUTPUT_TO_SCREEN
+	cout << left << setw(8) << 0;
+	cout << left << setw(12) << tRMSE;
+	cout << left << setw(12) << vRMSE;
+	cout << left << setw(8) << now_mu << endl;
+#endif
 
 	for (int iEpoch = 1; iEpoch <= networkinfo.maxEpoch; ++iEpoch) {
 
 		for (int iGroup = 0; iGroup < networkinfo.nGroup; ++iGroup) {
 			netGroup[iGroup].BackupWeight();
 		}
-		
+
 		Jac.setZero();
 		for (int iGroup = 0; iGroup < networkinfo.nGroup; ++iGroup) {
 			netGroup[iGroup].BackProp();
 		}
 		JtJ = Jac.transpose().eval() * Jac;
 		JtErr = Jac.transpose() * tErr.transpose();
-		dWeight = (JtJ + now_mu * MatrixXd::Identity(nWeight, nWeight)).llt().solve(JtErr);
-		for (int iGroup = 0; iGroup < networkinfo.nGroup; ++iGroup) {
-			netGroup[iGroup].UpdateWeight();
-		}
+
+		UpdateWeight(now_mu);
 
 		ForwardProp();
 		while (TrainPerf()) {
@@ -200,10 +241,7 @@ void NeuralNetwork::FittingControl(const int & iFit)
 			for (int iGroup = 0; iGroup < networkinfo.nGroup; ++iGroup) {
 				netGroup[iGroup].RestoreWeight();
 			}
-			dWeight = (JtJ + now_mu * MatrixXd::Identity(nWeight, nWeight)).llt().solve(JtErr);
-			for (int iGroup = 0; iGroup < networkinfo.nGroup; ++iGroup) {
-				netGroup[iGroup].UpdateWeight();
-			}
+			UpdateWeight(now_mu);
 			ForwardProp();
 		}
 		if (IfBreak)
@@ -213,6 +251,9 @@ void NeuralNetwork::FittingControl(const int & iFit)
 
 		CalDevSet();
 		DevPerf();
+
+		if (networkinfo.IfEarly && inc_step > networkinfo.EarlySteps)
+			break;
 
 		fout << left << setw(8) << iEpoch;
 		fout << left << setw(12) << tRMSE;
@@ -225,11 +266,6 @@ void NeuralNetwork::FittingControl(const int & iFit)
 		cout << left << setw(12) << vRMSE;
 		cout << left << setw(8) << now_mu << endl;
 #endif
-
-		if (networkinfo.IfEarly) {
-			if (inc_step > networkinfo.EarlySteps)
-				break;
-		}
 	}
 
 	time(&end_time);
@@ -256,13 +292,28 @@ void NeuralNetwork::ForwardProp()
 	for (int iGroup = 0; iGroup < networkinfo.nGroup; ++iGroup) {
 		netGroup[iGroup].ForwardProp();
 	}
-#ifdef DEBUG_OPTIMIZER
-	debug << LMARK << "Optimizer::ForwardProp" << RMARK << endl;
-	debug << "trainEnergy" << endl << trainEnergy << endl;
+#ifdef DEBUG_NEURALNETWORK
+	debug << "NeuralNetwork::ForwardProp()" << endl;
+	debug << "tEnergy:" << endl << tEnergy << endl << endl;
 #endif // DEBUG_MODE
 }
 
+void NeuralNetwork::UpdateWeight(const double & mu)
+{
+	// ---------- Cholesky decomposition ----------
+	dWeight = (JtJ + mu * MatrixXd::Identity(nWeight, nWeight)).llt().solve(JtErr);
 
+	// ---------- robust Cholesky decomposition ----------
+	//		dWeight = (JtJ + mu * MatrixXd::Identity(nWeight, nWeight)).ldlt().solve(JtErr);
+
+	// ---------- Householder transformations ----------
+	//		dWeight = (JtJ + mu * MatrixXd::Identity(nWeight, nWeight)).householderQr().solve(JtErr);
+
+	for (int iGroup = 0; iGroup < networkinfo.nGroup; ++iGroup) {
+		netGroup[iGroup].UpdateWeight();
+	}
+
+}
 
 bool NeuralNetwork::TrainPerf()
 {
@@ -278,9 +329,9 @@ bool NeuralNetwork::TrainPerf()
 		tRMSE_last = tRMSE;
 	}
 
-#ifdef DEBUG_OPTIMIZER
-	debug << LMARK << "Optimizer::TrainPerf" << RMARK << endl;
-	debug << "tErr" << endl << tErr << endl;
+#ifdef DEBUG_NEURALNETWORK
+	debug << "NeuralNetwork::TrainPerf" << endl;
+	debug << "tErr" << endl << tErr << endl << endl;
 #endif // DEBUG_MODE
 
 	return IfBad;
@@ -294,15 +345,13 @@ void NeuralNetwork::CalDevSet()
 	}
 }
 
-bool NeuralNetwork::DevPerf()
+void NeuralNetwork::DevPerf()
 {
-	bool IfBad = false;
 
 	vErr = targetEnergy.segment(networkinfo.tSample, networkinfo.vSample) - vEnergy;	
 	vRMSE = sqrt(vErr.squaredNorm() / networkinfo.vSample) * (maxEnergy - minEnergy) * parameter.energy_correction;
 
 	if (vRMSE > vRMSE_last) {
-		IfBad = true;
 		inc_step++;
 	}
 	else {
@@ -310,12 +359,11 @@ bool NeuralNetwork::DevPerf()
 	}
     vRMSE_last = vRMSE;
 
-#ifdef DEBUG_OPTIMIZER
-	debug << LMARK << "Optimizer::DevPerf" << RMARK << endl;
-	debug << "vErr" << endl << vErr << endl;
+#ifdef DEBUG_NEURALNETWORK
+	debug << "NeuralNetwork::DevPerf()"<< endl;
+	debug << "vErr" << endl << vErr << endl << endl;
 #endif // DEBUG_MODE
 
-	return IfBad;
 }
 
 void NeuralNetwork::SaveNetwork(const int & iFit)
@@ -336,19 +384,21 @@ void NeuralNetwork::SaveNetwork(const int & iFit)
 	fout.open(OutputName.c_str(), ofstream::out);
 
 	// ========== funcinfo ==========
-	fout << "<funcinfo>" << endl << endl;
+	fout << "<funcinfo>" << endl;
 	pSymfunc->OutputFuncInfo(fout);
 	fout << "<end>" << endl << endl;
 
 	// ========== networkinfo =========
-	fout << "<networkinfo>" << endl << endl;
+	fout << "<networkinfo>" << endl;
 	
 	networkinfo.SaveInfo(fout);
 
 	fout << "<end>" << endl << endl;
 
 	//--------------- Weight ---------------
-	fout << "<network>" << endl << endl;
+	fout << "<network>" << endl;
+
+	fout << setprecision(15) << std::scientific << std::showpos;
 
 	fout << "weight" << endl;
 	for (int iGroup = 0; iGroup < networkinfo.nGroup; ++iGroup) {
@@ -359,35 +409,35 @@ void NeuralNetwork::SaveNetwork(const int & iFit)
 	//--------------- minX ---------------
 	fout << "minX" << endl;
 	for (int i = 0; i < dimX; ++i) {
-		fout << setprecision(16) << minX[i] << " ";
+		fout << setw(25) << left << minX[i];
 	}
 	fout << endl;
 
 	//--------------- avgX ---------------
 	fout << "avgX" << endl;
 	for (int i = 0; i < dimX; ++i) {
-		fout << setprecision(16) << avgX[i] << " ";
+		fout << setw(25) << left << avgX[i];
 	}
 	fout << endl;
 
 	//--------------- maxX ---------------
 	fout << "maxX" << endl;
 	for (int i = 0; i < dimX; ++i) {
-		fout << setprecision(16) << maxX[i] << " ";
+		fout << setw(25) << left << maxX[i];
 	}
 	fout << endl;
 
 	//--------------- minEnergy ---------------
 	fout << "minEnergy" << endl;
-	fout << minEnergy << endl;
+	fout << setw(25) << left << minEnergy << endl;
 
 	//--------------- avgEnergy ---------------
 	fout << "avgEnergy" << endl;
-	fout << avgEnergy << endl;
+	fout << setw(25) << left << avgEnergy << endl;
 
 	//--------------- maxEnergy ---------------
 	fout << "maxEnergy" << endl;
-	fout << maxEnergy << endl;
+	fout << setw(25) << left << maxEnergy << endl;
 
 	fout << "<end>" << endl;
 

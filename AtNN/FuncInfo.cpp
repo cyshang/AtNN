@@ -2,7 +2,8 @@
 
 using std::left;
 using std::setw;
-
+using std::scientific;
+using std::fixed;
 
 FuncInfo::FuncInfo(const std::string & str)
 {
@@ -100,27 +101,41 @@ string FuncInfo::PrintFuncInfo() const
 
 	switch (cutoff)
 	{
-	case 0: sout << "C1"; break;
-	case 1: sout << "C2"; break;
+	case 0: sout << setw(4) << left << "C1"; break;
+	case 1: sout << setw(4) << left << "C2"; break;
 	}
-	sout << "\t";
 
 	switch (symfunc)
 	{
-	case 0:	sout << "G1"; element_size = 1; parameter_size = 1; break;
-	case 1:	sout << "G2"; element_size = 1; parameter_size = 3; break;
-	case 2:	sout << "G3"; element_size = 2; parameter_size = 4; break;
-	case 3:	sout << "G4"; element_size = 2; parameter_size = 4; break;
-	}
-	sout << "\t";
-
-	for (int i = 0; i < element_size; ++i) {
-		sout << parameter.num_to_element[elements[i]] << "\t";		
+	case 0:	sout << setw(4) << "G1"; element_size = 1; parameter_size = 1; break;
+	case 1:	sout << setw(4) << "G2"; element_size = 1; parameter_size = 3; break;
+	case 2:	sout << setw(4) << "G3"; element_size = 2; parameter_size = 4; break;
+	case 3:	sout << setw(4) << "G4"; element_size = 2; parameter_size = 4; break;
 	}
 
-	for (int i = 0; i < parameter_size; ++i) {
-		sout << funcParam[i] << "\t";
-	}	
+	for (int i = 0; i < 2; ++i) {
+		if (i < element_size)
+			sout << setw(4) << left << parameter.num_to_element[elements[i]];
+		else
+			sout << setw(4) << left << ' ';
+	}
+
+	sout << setw(6) << left << funcParam[0];
+
+	if (parameter_size == 4) {
+		sout << std::showpos;
+		sout << setw(25) << left << funcParam[1];
+		sout << std::noshowpos;
+		sout << std::setprecision(15) << scientific;
+		sout << setw(25) << left << funcParam[2];
+		sout << setw(25) << left << funcParam[3];
+	}
+	else {
+		for (int i = 1; i < parameter_size; ++i) {
+			sout << std::setprecision(15) << scientific;
+			sout << setw(25) << left << funcParam[i];
+		}
+	}
 
 	return sout.str();
 }

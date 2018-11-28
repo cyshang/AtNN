@@ -25,7 +25,6 @@ SymFunction::~SymFunction() {}
 
 void SymFunction::Construct(istream & fin)
 {
-	istringstream getVar;
 	int pk;
 	string element;
 	int nFunc;
@@ -50,7 +49,7 @@ void SymFunction::Construct(istream & fin)
 
 #ifdef DEBUG_SYMFUNCTION
 
-	//debug << "dimX: " << dimX << endl << endl;
+	debug << "dimX: " << dimX << endl << endl;
 
 #endif
 
@@ -90,18 +89,22 @@ void SymFunction::Construct(istream & fin)
 
 #ifdef DEBUG_SYMFUNCTION
 
-	//debug << "tlist:" << endl;
-	//for (iX = 0; iX < dimX; ++iX) {
-	//	vector<std::array<int, 2> >::iterator ii;
-	//	
-	//	for (ii = tlist[iX].begin(); ii != tlist[iX].end(); ++ii) {
-	//		debug << "(" << (*ii)[0] << "," << (*ii)[1] << ") ";
-	//	}
-	//	debug << endl;
-	//}
-	//debug << endl;
+	debug << "tlist:" << endl;
+	for (iX = 0; iX < dimX; ++iX) {
+		vector<Array2>::iterator ii;
+		
+		for (ii = tlist[iX].begin(); ii != tlist[iX].end(); ++ii) {
+			debug << "(" << (*ii)[0] << "," << (*ii)[1] << ") ";
+		}
+		debug << endl;
+	}
+	debug << endl;
 
 #endif
+
+#ifdef OUTPUT_TO_SCREEN
+	cout << "SymFunction::Construct(istream & fin)" << endl;
+#endif // OUTPUT_TO_SCREEN
 
 }
 
@@ -217,11 +220,11 @@ void SymFunction::CalX(const long & iSample, const Molecule & molecule)
 	}
 
 #ifdef DEBUG_SYMFUNCTION
-	//debug << "data:" << endl;
-	//for (iX = 0; iX < dimX; ++iX) {
-	//	debug << data[iX] << " ";
-	//}
-	//debug << Energy[iSample] << endl;
+	debug << "data:" << endl;
+	for (iX = 0; iX < dimX; ++iX) {
+		debug << data[iX] << " ";
+	}
+	debug << Energy[iSample] << endl;
 #endif
 
 }

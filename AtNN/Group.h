@@ -24,7 +24,6 @@ struct Group
 	int WeightStart;
 	int inputStart;
 
-	std::vector<std::vector<Eigen::MatrixXd> > Z;
 	std::vector<std::vector<Eigen::MatrixXd> > A;
 	std::vector<std::vector<Eigen::MatrixXd> > devA;
 	std::vector<std::vector<Eigen::MatrixXd> > dFdZ;

@@ -18,7 +18,7 @@ int main(void)
 	SymFunction *pSymfunc = NULL;
 	vector<Molecule> molecule;
 
-	setup.open("setup.cfg", ifstream::in);
+	setup.open("../input/setup.cfg", ifstream::in);
 	if (setup) {
 		parameter.GetParameter(setup);
 		setup.close();
@@ -44,7 +44,11 @@ int main(void)
 
 		if (parameter.InitAllParameter()) throw "struct parameter::InitAllParameter";
 
-		File_Molecule = parameter.input_folder + parameter.fCartesianData;
+		if (parameter.DataType == "XYZ")
+			File_Molecule = parameter.input_folder + parameter.fCartesianData;
+		else
+			File_Molecule = parameter.input_folder + parameter.fDistanceData;
+
 		fin.open(File_Molecule.c_str(), ifstream::in);
 		if (!fin) {
 			cout << "open molecule file failed!" << endl;
@@ -52,7 +56,11 @@ int main(void)
 		}
 		molecule.resize(parameter.nSample, Molecule());
 		for (long iSample = 0; iSample < parameter.nSample; ++iSample) {
-			molecule[iSample].GetCartesian(fin);
+			if (parameter.DataType == "XYZ")
+				molecule[iSample].GetCartesian(fin);
+			else if (parameter.DataType == "R")
+				molecule[iSample].GetDistance(fin);
+
 			molecule[iSample].CalMatrix();
 		}
 		fin.close();
@@ -60,17 +68,16 @@ int main(void)
 		pSymfunc = new SymFunction;
 		pNetwork = new NeuralNetwork(pSymfunc);
 
-        //string ls_order;
-        //string FuncInfoFiles = "tmp";
-        //ifstream finfo;
+        string ls_order;
+        string FuncInfoFiles = "tmp";
+        ifstream finfo;
 
-        //ls_order = "ls " + parameter.symfunc_folder + " > " +  FuncInfoFiles;
-        //system(ls_order.c_str());
-        //finfo.open(FuncInfoFiles.c_str(), ifstream::in);
+        ls_order = "ls " + parameter.symfunc_folder + " > " +  FuncInfoFiles;
+        system(ls_order.c_str());
+        finfo.open(FuncInfoFiles.c_str(), ifstream::in);
 
 		for (int iFuncInfo = 1; iFuncInfo <= parameter.nFuncInfo; iFuncInfo++) {
-            //finfo >> parameter.fFunctionInfo;
-			parameter.fFunctionInfo = "FunctionInfo.01";
+            finfo >> parameter.fFunctionInfo;
 			parameter.get_funcinfo_id();
 			File_FuncInfo = parameter.symfunc_folder + parameter.fFunctionInfo;
 			fin.open(File_FuncInfo.c_str(), ifstream::in);
@@ -81,18 +88,22 @@ int main(void)
 
 			pSymfunc->Construct(fin);
 			fin.close();
+
 			for (long iSample = 0; iSample < parameter.nSample; ++iSample) {
 				pSymfunc->CalX(iSample, molecule[iSample]);
 			}
+#ifdef OUTPUT_TO_SCREEN
+			cout << "SymFunction::CalX()" << endl;
+#endif // 
 
 			pNetwork->Construct();
 			pNetwork->TrainNetwork();
 			pSymfunc->Clear();
 		}
 
-		//system(("rm " + FuncInfoFiles).c_str());
+		system(("rm " + FuncInfoFiles).c_str());
 
-  //      finfo.close();
+        finfo.close();
         
 	}
 	catch (const char * error_pos) {

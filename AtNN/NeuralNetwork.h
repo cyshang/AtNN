@@ -63,9 +63,10 @@ struct NeuralNetwork
 	void FittingControl(const int & iFit);
 
 	void ForwardProp();
+	void UpdateWeight(const double & mu);
 	bool TrainPerf();
 	void CalDevSet();
-	bool DevPerf();
+	void DevPerf();
 
 	void OutputDebug(std::ostream & out = std::cout);
 	void SaveNetwork(const int & iFit);

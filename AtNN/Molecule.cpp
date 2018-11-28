@@ -50,7 +50,7 @@ void Molecule::GetCartesian(istream & fin) {
 
 #ifdef DEBUG_MOLECULE
 	debug << "Cartesian:" << endl;
-	debug << Cartesian << endl;
+	debug << Cartesian << endl << endl;
 #endif
 }
 
@@ -98,14 +98,14 @@ void Molecule::CalMatrix()
 #ifdef DEBUG_MOLECULE
 
 	debug << "R2:" << endl;
-	debug << R2 << endl;
+	debug << R2 << endl << endl;
 
 	debug << "R:" << endl;
-	debug << R << endl;
+	debug << R << endl << endl;
 
 	for (int i = 0; i < parameter.nAtom; ++i) {
 		debug << "cos0[" << i << "]:" << endl;
-		debug << cos0[i] << endl;
+		debug << cos0[i] << endl << endl;
 	}
 
 #endif

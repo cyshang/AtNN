@@ -18,11 +18,7 @@ void FuncGroup::Construct(istream & fin, const int & _nFunc)
 
 #ifdef DEBUG_FUNCGROUP
 
-	debug << parameter.num_to_element[element] << " " << nFunc << endl;
-	for (int iFunc = 0; iFunc < nFunc; ++iFunc) {
-		debug << funcinfo[iFunc].PrintFuncInfo() << endl;
-	}
-	debug << endl;
+	OutputInfo(debug);
 
 #endif // DEBUG_FUNCGROUP
 

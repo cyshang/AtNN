@@ -8,9 +8,7 @@
 //#define DEBUG_SYMFUNCTION
 #endif // DEBUG_MODE
 
-
 struct FuncGroup;
-struct NeuralNetwork;
 
 struct SymFunction {
 

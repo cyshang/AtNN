@@ -11,7 +11,7 @@
 #include <string>
 #include "Parameter.h"
 
-#define DEBUG_MODE
+//#define DEBUG_MODE
 #define OUTPUT_TO_SCREEN
 
 #ifndef EIGEN_USE_MKL_ALL

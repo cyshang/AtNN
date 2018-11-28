@@ -13,7 +13,7 @@ using std::getline;
 
 NetworkInfo::NetworkInfo() :
 	train_ratio(0), tSample(0), vSample(0),
-	nFitting(0), maxEpoch(0), IfEarly(0), EarlySteps(0)
+	nFitting(0), maxEpoch(0), IfEarly(false), EarlySteps(0)
 {
 	nGroup = parameter.nElement;
 	nNet.resize(nGroup, 0);
@@ -76,7 +76,13 @@ void NetworkInfo::GetInfo()
 			fin >> mu;
 		}
 		else if (var == "IfEarly") {
-			fin >> IfEarly;
+			string tmp;
+
+			fin >> tmp;
+			if (tmp == "true")
+				IfEarly = true;
+			else if (tmp == "false")
+				IfEarly = false;			
 		}
 		else if (var == "EarlySteps") {
 			fin >> EarlySteps;
@@ -151,27 +157,30 @@ void NetworkInfo::Construct(const SymFunction *pSymfunc)
 	debug << endl;
 
 #endif
+
+#ifdef OUTPUT_TO_SCREEN
+	cout << "NetworkInfo::Construct(const SymFunction *pSymfunc)" << endl;
+#endif // OUTPUT_TO_SCREEN
 }
 
 void NetworkInfo::SaveInfo(std::ostream & fout)
 {
-	fout << "nGroup " << nGroup << endl;
-	fout << "nNet ";
-	for (int iGroup = 0; iGroup < nGroup - 1; ++iGroup) {
-		fout << nNet[iGroup] << " ";
+	fout << setw(10) << left << "nGroup" << nGroup << endl;
+	fout << setw(10) << left << "nNet";
+	for (int iGroup = 0; iGroup < nGroup; ++iGroup) {
+		fout << setw(5) << left << nNet[iGroup];
 	}
-	fout << nNet[nGroup - 1] << endl;	
-	fout << "nLayer ";
-	for (int iGroup = 0; iGroup < nGroup - 1; ++iGroup) {
-		fout << nLayer[iGroup] << " ";
+	fout << endl;
+	fout << setw(10) << left << "nLayer";
+	for (int iGroup = 0; iGroup < nGroup; ++iGroup) {
+		fout << setw(5) << left << nLayer[iGroup];
 	}
-	fout << nLayer[nGroup - 1] << endl;	
-	fout << "nNeuron" << endl;
+	fout << endl;
+	fout << setw(10) << left << "nNeuron" << endl;
 	for (int iGroup = 0; iGroup < nGroup; ++iGroup) {
 		for (int iLayer = 0; iLayer < nLayer[iGroup]; ++iLayer) {
-			fout << nNeuron[iGroup][iLayer] << " ";
+			fout << setw(5) << left << nNeuron[iGroup][iLayer];
 		}
 		fout << endl;
 	}
-	fout << endl;
 }

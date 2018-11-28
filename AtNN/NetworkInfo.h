@@ -25,7 +25,7 @@ struct NetworkInfo {
 
 	int nFitting;
 	int maxEpoch;
-	int IfEarly;
+	bool IfEarly;
 	int EarlySteps;
 
 	double mu;
